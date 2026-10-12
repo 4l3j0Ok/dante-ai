@@ -1,0 +1,144 @@
+plugins {
+	id 'fabric-loom' version "${loom_version}"
+	id 'maven-publish'
+}
+
+base {
+	archivesName = project.archives_base_name
+}
+
+repositories {
+	mavenCentral()
+	maven {
+		name = 'Modrinth'
+		url = 'https://api.modrinth.com/maven'
+		content { includeGroup 'maven.modrinth' }
+	}
+	maven {
+		name = 'henkelmax'
+		url = 'https://maven.maxhenkel.de/repository/public'
+		content { includeGroup 'de.maxhenkel.voicechat' }
+	}
+}
+
+sourceSets {
+	gametest {
+		java.include 'dev/danteai/gametest/DanteGameTests.java'
+		compileClasspath += sourceSets.main.output + sourceSets.main.compileClasspath
+		runtimeClasspath += sourceSets.main.output + sourceSets.main.runtimeClasspath
+	}
+}
+
+configurations {
+	gametestImplementation.extendsFrom implementation
+	gametestRuntimeOnly.extendsFrom runtimeOnly
+}
+
+loom {
+	splitEnvironmentSourceSets()
+
+	mods {
+		"danteai" {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+		"danteai-gametest" {
+			sourceSet sourceSets.gametest
+		}
+	}
+	runs {
+		gameTest {
+			server()
+			source sourceSets.gametest
+			vmArg '-Dfabric-api.gametest'
+			vmArg "-Dfabric-api.gametest.report-file=${layout.buildDirectory.file('reports/gametest/results.xml').get().asFile}"
+			runDir 'build/run/gametest1211'
+		}
+	}
+}
+
+dependencies {
+	minecraft "com.mojang:minecraft:${project.minecraft_version}"
+	mappings loom.officialMojangMappings()
+	modImplementation "net.fabricmc:fabric-loader:${project.loader_version}"
+	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
+
+	// SQLite para la memoria persistente. Se empaqueta dentro del jar del mod (jar-in-jar),
+	// así que el servidor no necesita instalar nada adicional.
+	implementation "org.xerial:sqlite-jdbc:${project.sqlite_jdbc_version}"
+	include "org.xerial:sqlite-jdbc:${project.sqlite_jdbc_version}"
+
+	// Integración opcional con Simple Voice Chat: solo se compila contra la API.
+	// En tiempo de ejecución la provee el mod Simple Voice Chat si está instalado.
+	compileOnly "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+	// Solo para ejecuciones de desarrollo; no se empaqueta en Dante.
+	modRuntimeOnly "maven.modrinth:simple-voice-chat:${project.voicechat_mod_version}"
+	testImplementation "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+	testImplementation "net.fabricmc:fabric-loader-junit:${project.loader_version}"
+	gametestImplementation "de.maxhenkel.voicechat:voicechat-api:${project.voicechat_api_version}"
+}
+
+tasks.register('prepareGameTest') {
+	doLast {
+		if (!project.minecraft_eula.toBoolean()) throw new GradleException('GameTests require minecraft_eula=true.')
+		def dir = layout.buildDirectory.dir('run/gametest1211').get().asFile
+		dir.mkdirs()
+		new File(dir, 'eula.txt').text = 'eula=true\n'
+		def configDir = new File(dir, 'config/danteai')
+		configDir.mkdirs()
+		// Los GameTests no dependen de servicios externos: Dante aparece aunque LLM/voz no respondan.
+		new File(configDir, 'config.jsonc').text = '{"dante": {"require_services": false}}\n'
+		layout.buildDirectory.dir('reports/gametest').get().asFile.mkdirs()
+	}
+}
+
+tasks.named('runGameTest') {
+	dependsOn 'prepareGameTest'
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+
+	filesMatching("fabric.mod.json") {
+		expand "version": version
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+	it.options.encoding = "UTF-8"
+}
+
+java {
+	withSourcesJar()
+
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+test {
+	useJUnitPlatform()
+	testLogging {
+		events "passed", "skipped", "failed"
+		exceptionFormat "full"
+	}
+}
+
+jar {
+	def projectName = project.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName" }
+	}
+}
+
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			from components.java
+		}
+	}
+}

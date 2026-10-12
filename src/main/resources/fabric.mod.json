@@ -1,0 +1,39 @@
+{
+	"schemaVersion": 1,
+	"id": "danteai",
+	"version": "${version}",
+	"name": "Dante AI",
+	"description": "Dante, un labrador negro cabezón controlado parcialmente por IA: vive en el servidor, pasea, sigue jugadores, conversa por chat (y por voz con Simple Voice Chat), guarda objetos y recuerda.",
+	"authors": [
+		"Dante AI contributors"
+	],
+	"contact": {
+		"sources": "https://github.com/danteai/dante-ai"
+	},
+	"license": "MIT",
+	"icon": "assets/danteai/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"dev.danteai.DanteAi"
+		],
+		"client": [
+			"dev.danteai.client.DanteAiClient"
+		],
+		"voicechat": [
+			"dev.danteai.voice.svc.DanteVoicechatPlugin"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.16.10",
+		"minecraft": "1.21.1",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"voicechat": "*"
+	},
+	"breaks": {
+		"voicechat_api": "<2.6.13"
+	}
+}

@@ -1,0 +1,14 @@
+{
+	"schemaVersion": 1,
+	"id": "danteai-gametest",
+	"version": "1.0.0",
+	"name": "Dante AI Server Tests",
+	"environment": "server",
+	"entrypoints": {
+		"fabric-gametest": ["dev.danteai.gametest.DanteGameTests"]
+	},
+	"depends": {
+		"danteai": "*",
+		"fabric-gametest-api-v1": "*"
+	}
+}

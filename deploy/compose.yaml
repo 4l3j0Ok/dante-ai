@@ -1,0 +1,31 @@
+# Requiere NVIDIA Container Toolkit y /etc/cdi/nvidia.yaml generado.
+# No contiene credenciales. TTS y STT publican solo en la IP LAN del host (192.168.0.34); el firewall acota el acceso.
+# Puertos del host con prefijo 2 sobre el del contenedor: Speaches 28000, Kokoro 28880.
+services:
+  speaches:
+    # Reconocimiento de voz (Whisper) en GPU.
+    image: ghcr.io/speaches-ai/speaches@sha256:6ec12ebf890a17e0d4b242a8ba9e0eb1fb836e60e8a3c857aea9838d541579ac
+    container_name: dante-speaches
+    restart: unless-stopped
+    devices:
+      - nvidia.com/gpu=all
+    ports:
+      - "192.168.0.34:28000:8000"
+    environment:
+      LOG_LEVEL: warning
+      WHISPER__INFERENCE_DEVICE: cuda
+      WHISPER__COMPUTE_TYPE: float16
+    volumes:
+      - dante-speaches-hf:/home/ubuntu/.cache/huggingface/hub:z
+  kokoro:
+    # Texto a voz: Kokoro-FastAPI (API compatible con OpenAI /v1/audio/speech). Voces en español: ef_dora, em_alex, em_santa.
+    image: ghcr.io/remsky/kokoro-fastapi-gpu:v0.9.0
+    container_name: dante-kokoro
+    restart: unless-stopped
+    devices:
+      - nvidia.com/gpu=all
+    ports:
+      - "192.168.0.34:28880:8880"
+volumes:
+  dante-speaches-hf:
+    external: true
