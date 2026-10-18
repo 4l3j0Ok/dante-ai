@@ -86,7 +86,13 @@ public final class ServiceMonitor {
 			return CompletableFuture.completedFuture(false);
 		}
 		if (uri.getHost() == null) return CompletableFuture.completedFuture(false);
-		HttpRequest request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(3)).GET().build();
+		String path = uri.getPath();
+		if (path != null && path.replaceAll("/+$", "").endsWith("/v1")) {
+			uri = URI.create(url.replaceAll("/+$", "") + "/models");
+		}
+		// HTTP/1.1 evita el "Upgrade: h2c" que uvicorn registra como WARNING en cada sondeo.
+		HttpRequest request = HttpRequest.newBuilder(uri).version(java.net.http.HttpClient.Version.HTTP_1_1)
+			.timeout(Duration.ofSeconds(3)).GET().build();
 		return HttpSupport.client().sendAsync(request, HttpResponse.BodyHandlers.discarding())
 			.handle((response, error) -> error == null && response.statusCode() != 502 && response.statusCode() != 503
 				&& response.statusCode() != 504);
